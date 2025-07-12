@@ -23,7 +23,7 @@
         #game-container {
             position: relative;
             width: 100%;
-            height: 100vh;
+            /* Height is set by JavaScript for mobile compatibility */
             overflow: hidden;
             background: #1a202c;
         }
@@ -79,12 +79,13 @@
             position: absolute;
             bottom: 0;
             width: 33.3333%;
-            height: 150px;
-            border-top: 5px dashed #4a5568;
+            height: 120px;
+            font-size: 1.25rem;
+            border-top: 2px solid #4a5f7b;
+            box-shadow: inset 0 5px 15px rgba(0,0,0,0.2);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.5rem;
             font-weight: bold;
             color: white;
             transition: background-color 0.3s;
@@ -159,189 +160,198 @@
     </div>
 
     <script>
-        // --- DOM Elements ---
-        const gameContainer = document.getElementById('game-container');
-        const brick = document.getElementById('brick');
-        const brickImage = document.getElementById('brick-image');
-        const brickText = document.getElementById('brick-text');
-        const lanes = [document.getElementById('lane1'), document.getElementById('lane2'), document.getElementById('lane3')];
-        const scoreCorrectDisplay = document.getElementById('score-correct');
-        const scoreTotalDisplay = document.getElementById('score-total');
-        const startScreen = document.getElementById('start-screen');
-        const gameOverScreen = document.getElementById('game-over-screen');
-        const startButton = document.getElementById('start-button');
-        const restartButton = document.getElementById('restart-button');
-        const finalScoreDisplay = document.getElementById('final-score');
+        // --- Run the script after the HTML document has been fully loaded ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DOM Elements ---
+            const gameContainer = document.getElementById('game-container');
+            const brick = document.getElementById('brick');
+            const brickImage = document.getElementById('brick-image');
+            const brickText = document.getElementById('brick-text');
+            const lanes = [document.getElementById('lane1'), document.getElementById('lane2'), document.getElementById('lane3')];
+            const scoreCorrectDisplay = document.getElementById('score-correct');
+            const scoreTotalDisplay = document.getElementById('score-total');
+            const startScreen = document.getElementById('start-screen');
+            const gameOverScreen = document.getElementById('game-over-screen');
+            const startButton = document.getElementById('start-button');
+            const restartButton = document.getElementById('restart-button');
+            const finalScoreDisplay = document.getElementById('final-score');
 
-        // --- Game State ---
-        let correctlyAnswered = 0;
-        let totalAnswered = 0;
-        let BASE_GAME_SPEED = 1.5; // Will be calculated dynamically
-        let gameSpeed = BASE_GAME_SPEED;
-        let currentQuestion = null;
-        let animationFrameId = null;
-        let brickY = 0;
-        let laneClicked = false;
-        let chosenLaneIndex = -1;
-        let unansweredQuestions = [];
+            // --- Game State ---
+            let correctlyAnswered = 0;
+            let totalAnswered = 0;
+            let BASE_GAME_SPEED = 1.5;
+            let gameSpeed = BASE_GAME_SPEED;
+            let currentQuestion = null;
+            let animationFrameId = null;
+            let brickY = 0;
+            let laneClicked = false;
+            let chosenLaneIndex = -1;
+            let unansweredQuestions = [];
 
-        // --- Questions Database with local image paths ---
-        const questions = [
-            { type: 'image', imageUrl: 'images/friz.jpeg', answers: ['Friz', 'Blowek', 'Rezi'], correct: 0 },
-            { type: 'image', imageUrl: 'images/wersow.png', answers: ['Natsu', 'Wersow', 'Lexy Chaplin'], correct: 1 },
-            { type: 'image', imageUrl: 'images/sanah.png', answers: ['Roksana Węgiel', 'Viki Gabor', 'sanah'], correct: 2 },
-            { type: 'image', imageUrl: 'images/podsiadlo.png', answers: ['Dawid Podsiadło', 'Ralph Kaminski', 'Mrozu'], correct: 0 },
-            { type: 'image', imageUrl: 'images/lexy.png', answers: ['Wersow', 'Lexy Chaplin', 'Marcysia'], correct: 1 },
-            { type: 'image', imageUrl: 'images/wegiel.png', answers: ['sanah', 'Viki Gabor', 'Roksana Węgiel'], correct: 2 },
-            { type: 'image', imageUrl: 'images/blowek.png', answers: ['Blowek', 'Friz', 'Marcin Dubiel'], correct: 0 },
-            { type: 'image', imageUrl: 'images/gabor.png', answers: ['Roksana Węgiel', 'Viki Gabor', 'Sara James'], correct: 1 }
-        ];
+            // --- Questions Database with local image paths ---
+            const questions = [
+                { type: 'image', imageUrl: 'images/friz.jpeg', answers: ['Friz', 'Blowek', 'Rezi'], correct: 0 },
+                { type: 'image', imageUrl: 'images/wersow.png', answers: ['Natsu', 'Wersow', 'Lexy Chaplin'], correct: 1 },
+                { type: 'image', imageUrl: 'images/sanah.png', answers: ['Roksana Węgiel', 'Viki Gabor', 'sanah'], correct: 2 },
+                { type: 'image', imageUrl: 'images/podsiadlo.png', answers: ['Dawid Podsiadło', 'Ralph Kaminski', 'Mrozu'], correct: 0 },
+                { type: 'image', imageUrl: 'images/lexy.png', answers: ['Wersow', 'Lexy Chaplin', 'Marcysia'], correct: 1 },
+                { type: 'image', imageUrl: 'images/wegiel.png', answers: ['sanah', 'Viki Gabor', 'Roksana Węgiel'], correct: 2 },
+                { type: 'image', imageUrl: 'images/blowek.png', answers: ['Blowek', 'Friz', 'Marcin Dubiel'], correct: 0 },
+                { type: 'image', imageUrl: 'images/gabor.png', answers: ['Roksana Węgiel', 'Viki Gabor', 'Sara James'], correct: 1 }
+            ];
 
-        // --- Game Logic ---
+            // --- Function to handle dynamic height for mobile browsers ---
+            function resizeGameContainer() {
+                gameContainer.style.height = `${window.innerHeight}px`;
+            }
 
-        function startGame() {
-            correctlyAnswered = 0;
-            totalAnswered = 0;
-            updateScoreDisplay();
-            
-            BASE_GAME_SPEED = window.innerHeight / 400;
+            // --- Game Logic ---
 
-            unansweredQuestions = shuffle([...questions]);
+            function startGame() {
+                correctlyAnswered = 0;
+                totalAnswered = 0;
+                updateScoreDisplay();
+                
+                BASE_GAME_SPEED = window.innerHeight / 400;
 
-            startScreen.style.display = 'none';
-            gameOverScreen.style.display = 'none';
-            spawnBrick();
-        }
+                unansweredQuestions = shuffle([...questions]);
 
-        function gameOver() {
-            cancelAnimationFrame(animationFrameId);
-            brick.style.display = 'none';
-            finalScoreDisplay.textContent = `${correctlyAnswered} / ${totalAnswered}`;
-            gameOverScreen.style.display = 'flex';
-        }
+                startScreen.style.display = 'none';
+                gameOverScreen.style.display = 'none';
+                spawnBrick();
+            }
 
-        function spawnBrick() {
-            if (unansweredQuestions.length === 0) {
-                gameOver();
-                return;
+            function gameOver() {
+                cancelAnimationFrame(animationFrameId);
+                brick.style.display = 'none';
+                finalScoreDisplay.textContent = `${correctlyAnswered} / ${totalAnswered}`;
+                gameOverScreen.style.display = 'flex';
+            }
+
+            function spawnBrick() {
+                if (unansweredQuestions.length === 0) {
+                    gameOver();
+                    return;
+                }
+                
+                gameSpeed = BASE_GAME_SPEED;
+                laneClicked = false;
+                chosenLaneIndex = -1;
+
+                const questionIndex = Math.floor(Math.random() * unansweredQuestions.length);
+                currentQuestion = unansweredQuestions.splice(questionIndex, 1)[0];
+
+                brickImage.src = currentQuestion.imageUrl;
+                brickImage.style.display = 'block';
+                brickImage.onerror = () => { brickImage.src = `https://placehold.co/120x60/cccccc/ffffff?text=Image_Error`; };
+                brickText.style.display = 'none';
+
+                const shuffledAnswers = shuffle([...currentQuestion.answers]);
+                const correctText = currentQuestion.answers[currentQuestion.correct];
+                currentQuestion.correctLane = shuffledAnswers.indexOf(correctText);
+
+                lanes.forEach((lane, index) => {
+                    lane.textContent = shuffledAnswers[index];
+                });
+
+                const currentBrickWidth = window.innerWidth >= 768 ? 160 : 120;
+                const laneWidth = gameContainer.clientWidth / 3;
+                const laneIndexForBrick = 1; 
+                const brickX = (laneIndexForBrick * laneWidth) + (laneWidth / 2) - (currentBrickWidth / 2);
+                
+                brickY = -150;
+                brick.style.left = `${brickX}px`;
+                brick.style.top = `${brickY}px`;
+                brick.style.display = 'flex';
+
+                if (animationFrameId) cancelAnimationFrame(animationFrameId);
+                gameLoop();
+            }
+
+            function gameLoop() {
+                brickY += gameSpeed;
+                brick.style.top = `${brickY}px`;
+
+                const laneTopY = gameContainer.clientHeight - 120;
+                if (brickY + brick.offsetHeight >= laneTopY) {
+                    handleBrickImpact();
+                } else {
+                    animationFrameId = requestAnimationFrame(gameLoop);
+                }
             }
             
-            gameSpeed = BASE_GAME_SPEED;
-            laneClicked = false;
-            chosenLaneIndex = -1;
+            function handleLaneClick(clickedLaneIndex) {
+                if (laneClicked || brick.style.display === 'none') return;
 
-            const questionIndex = Math.floor(Math.random() * unansweredQuestions.length);
-            currentQuestion = unansweredQuestions.splice(questionIndex, 1)[0];
+                laneClicked = true;
+                chosenLaneIndex = clickedLaneIndex;
 
-            brickImage.src = currentQuestion.imageUrl;
-            brickImage.style.display = 'block';
-            brickImage.onerror = () => { brickImage.src = `https://placehold.co/120x60/cccccc/ffffff?text=Image_Error`; };
-            brickText.style.display = 'none';
+                const currentBrickWidth = window.innerWidth >= 768 ? 160 : 120;
+                const laneWidth = gameContainer.clientWidth / 3;
+                const targetX = (clickedLaneIndex * laneWidth) + (laneWidth / 2) - (currentBrickWidth / 2);
+                brick.style.left = `${targetX}px`;
 
-            const shuffledAnswers = shuffle([...currentQuestion.answers]);
-            const correctText = currentQuestion.answers[currentQuestion.correct];
-            currentQuestion.correctLane = shuffledAnswers.indexOf(correctText);
+                gameSpeed *= 15;
+            }
+
+            function handleBrickImpact() {
+                if (brick.style.display === 'none') return;
+                
+                cancelAnimationFrame(animationFrameId);
+                totalAnswered++;
+
+                if (laneClicked) {
+                    if (chosenLaneIndex === currentQuestion.correctLane) {
+                        correctlyAnswered++;
+                        flashLane(chosenLaneIndex, 'correct');
+                    } else {
+                        flashLane(chosenLaneIndex, 'incorrect');
+                        flashLane(currentQuestion.correctLane, 'correct');
+                    }
+                } else {
+                    flashLane(currentQuestion.correctLane, 'incorrect');
+                }
+
+                updateScoreDisplay();
+                
+                brick.style.display = 'none';
+                setTimeout(spawnBrick, 500);
+            }
+
+            function updateScoreDisplay() {
+                scoreCorrectDisplay.textContent = correctlyAnswered;
+                scoreTotalDisplay.textContent = totalAnswered;
+            }
+
+            function flashLane(laneIndex, type) {
+                if (laneIndex < 0 || laneIndex >= lanes.length) return;
+                const lane = lanes[laneIndex];
+                lane.classList.add(type === 'correct' ? 'correct-flash' : 'incorrect-flash');
+                setTimeout(() => {
+                    lane.classList.remove('correct-flash', 'incorrect-flash');
+                }, 500);
+            }
+
+            function shuffle(array) {
+                for (let i = array.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [array[i], array[j]] = [array[j], array[i]];
+                }
+                return array;
+            }
+
+            // --- Event Listeners ---
+            startButton.addEventListener('click', startGame);
+            restartButton.addEventListener('click', startGame);
 
             lanes.forEach((lane, index) => {
-                lane.textContent = shuffledAnswers[index];
+                lane.addEventListener('click', () => handleLaneClick(index));
             });
 
-            // --- FIX: Reliably get brick width and center it ---
-            const currentBrickWidth = window.innerWidth >= 768 ? 160 : 120;
-            const laneWidth = gameContainer.clientWidth / 3;
-            const laneIndexForBrick = 1; // Always start in the middle lane
-            const brickX = (laneIndexForBrick * laneWidth) + (laneWidth / 2) - (currentBrickWidth / 2);
-            
-            brickY = -150;
-            brick.style.left = `${brickX}px`;
-            brick.style.top = `${brickY}px`;
-            brick.style.display = 'flex';
-
-            if (animationFrameId) cancelAnimationFrame(animationFrameId);
-            gameLoop();
-        }
-
-        function gameLoop() {
-            brickY += gameSpeed;
-            brick.style.top = `${brickY}px`;
-
-            const laneTopY = gameContainer.clientHeight - 150;
-            if (brickY + brick.offsetHeight >= laneTopY) {
-                handleBrickImpact();
-            } else {
-                animationFrameId = requestAnimationFrame(gameLoop);
-            }
-        }
-        
-        function handleLaneClick(clickedLaneIndex) {
-            if (laneClicked || brick.style.display === 'none') return;
-
-            laneClicked = true;
-            chosenLaneIndex = clickedLaneIndex;
-
-            // --- FIX: Reliably get brick width for centering jump ---
-            const currentBrickWidth = window.innerWidth >= 768 ? 160 : 120;
-            const laneWidth = gameContainer.clientWidth / 3;
-            const targetX = (clickedLaneIndex * laneWidth) + (laneWidth / 2) - (currentBrickWidth / 2);
-            brick.style.left = `${targetX}px`;
-
-            gameSpeed *= 15;
-        }
-
-        function handleBrickImpact() {
-            if (brick.style.display === 'none') return;
-            
-            cancelAnimationFrame(animationFrameId);
-            totalAnswered++;
-
-            if (laneClicked) {
-                if (chosenLaneIndex === currentQuestion.correctLane) {
-                    correctlyAnswered++;
-                    flashLane(chosenLaneIndex, 'correct');
-                } else {
-                    flashLane(chosenLaneIndex, 'incorrect');
-                    flashLane(currentQuestion.correctLane, 'correct');
-                }
-            } else {
-                flashLane(currentQuestion.correctLane, 'incorrect');
-            }
-
-            updateScoreDisplay();
-            
-            brick.style.display = 'none';
-            setTimeout(spawnBrick, 500);
-        }
-
-        function updateScoreDisplay() {
-            scoreCorrectDisplay.textContent = correctlyAnswered;
-            scoreTotalDisplay.textContent = totalAnswered;
-        }
-
-        function flashLane(laneIndex, type) {
-            if (laneIndex < 0 || laneIndex >= lanes.length) return;
-            const lane = lanes[laneIndex];
-            lane.classList.add(type === 'correct' ? 'correct-flash' : 'incorrect-flash');
-            setTimeout(() => {
-                lane.classList.remove('correct-flash', 'incorrect-flash');
-            }, 500);
-        }
-
-        function shuffle(array) {
-            for (let i = array.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [array[i], array[j]] = [array[j], array[i]];
-            }
-            return array;
-        }
-
-        // --- Event Listeners ---
-        startButton.addEventListener('click', startGame);
-        restartButton.addEventListener('click', startGame);
-
-        lanes.forEach((lane, index) => {
-            lane.addEventListener('click', () => handleLaneClick(index));
+            // --- Set initial size and listen for changes ---
+            resizeGameContainer();
+            window.addEventListener('resize', resizeGameContainer);
         });
-
     </script>
 </body>
 </html>
