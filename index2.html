@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Falling Brick Trivia</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Pixelify+Sans:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* Custom styles for the game */
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            touch-action: none; /* Prevents scrolling on touch devices */
+        }
+
+        .font-pixel {
+            font-family: 'Pixelify Sans', sans-serif;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100%;
+            /* Height is set by JavaScript for mobile compatibility */
+            overflow: hidden;
+            background: #1a202c;
+        }
+
+        #brick {
+            position: absolute;
+            /* Default size for mobile */
+            width: 120px;
+            min-height: 80px;
+            background-color: #f6e05e;
+            border: 4px solid #d69e2e;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 10px;
+            user-select: none;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            transition: left 0.1s ease-out;
+        }
+
+        /* Media query for larger screens */
+        @media (min-width: 768px) {
+            #brick {
+                width: 160px; /* Larger width on desktop */
+                min-height: 100px; /* Larger height on desktop */
+            }
+        }
+
+        #brick-image {
+            width: 100%;
+            height: 60px;
+            object-fit: cover;
+            border-radius: 4px;
+            margin-bottom: 5px;
+        }
+        
+        @media (min-width: 768px) {
+            #brick-image {
+                height: 80px; /* Larger image height on desktop */
+            }
+        }
+
+        #brick-text {
+            font-size: 14px;
+            font-weight: bold;
+            color: #2d3748;
+        }
+
+        .lane {
+            position: absolute;
+            bottom: 0;
+            width: 33.3333%;
+            height: 120px;
+            font-size: 1.25rem;
+            border-top: 2px solid #4a5f7b;
+            box-shadow: inset 0 5px 15px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+            transition: background-color 0.3s;
+            cursor: pointer;
+        }
+        
+        .lane.correct-flash {
+            background-color: #48bb78 !important;
+        }
+
+        .lane.incorrect-flash {
+            background-color: #f56565 !important;
+        }
+
+        #lane1 { left: 0; background-color: #2c5282; }
+        #lane2 { left: 33.3333%; background-color: #2b6cb0; }
+        #lane3 { left: 66.6666%; background-color: #2c5282; }
+
+        #start-screen, #game-over-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body class="bg-gray-900">
+
+    <div id="game-container">
+        <!-- Stats Display -->
+        <div class="absolute top-4 right-4 text-white font-pixel text-2xl z-10">
+            <p>Correct: <span id="score-correct">0</span> / <span id="score-total">0</span></p>
+        </div>
+
+        <!-- Falling Brick -->
+        <div id="brick" style="display: none;">
+            <img id="brick-image" src="" alt="Question Image" style="display: none;">
+            <div id="brick-text"></div>
+        </div>
+
+        <!-- Answer Lanes -->
+        <div id="lane1" class="lane"></div>
+        <div id="lane2" class="lane"></div>
+        <div id="lane3" class="lane"></div>
+
+        <!-- Start Screen -->
+        <div id="start-screen">
+            <h1 class="text-6xl font-pixel mb-4">Falling Brick Trivia</h1>
+            <p class="text-xl mb-8">Click the correct lane for the falling brick!</p>
+            <button id="start-button" class="bg-yellow-400 text-gray-900 font-bold py-4 px-8 rounded-lg text-2xl hover:bg-yellow-500 transition">
+                Start Game
+            </button>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="game-over-screen" style="display: none;">
+            <h1 class="text-6xl font-pixel mb-4">All Done!</h1>
+            <p class="text-2xl mb-8">Final Score: <span id="final-score">0 / 0</span></p>
+            <button id="restart-button" class="bg-yellow-400 text-gray-900 font-bold py-4 px-8 rounded-lg text-2xl hover:bg-yellow-500 transition">
+                Play Again
+            </button>
+        </div>
+
+    </div>
+
+    <script>
+        // --- Run the script after the HTML document has been fully loaded ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DOM Elements ---
+            const gameContainer = document.getElementById('game-container');
+            const brick = document.getElementById('brick');
+            const brickImage = document.getElementById('brick-image');
+            const brickText = document.getElementById('brick-text');
+            const lanes = [document.getElementById('lane1'), document.getElementById('lane2'), document.getElementById('lane3')];
+            const scoreCorrectDisplay = document.getElementById('score-correct');
+            const scoreTotalDisplay = document.getElementById('score-total');
+            const startScreen = document.getElementById('start-screen');
+            const gameOverScreen = document.getElementById('game-over-screen');
+            const startButton = document.getElementById('start-button');
+            const restartButton = document.getElementById('restart-button');
+            const finalScoreDisplay = document.getElementById('final-score');
+
+            // --- Game State ---
+            let correctlyAnswered = 0;
+            let totalAnswered = 0;
+            let BASE_GAME_SPEED = 1.5;
+            let gameSpeed = BASE_GAME_SPEED;
+            let currentQuestion = null;
+            let animationFrameId = null;
+            let brickY = 0;
+            let laneClicked = false;
+            let chosenLaneIndex = -1;
+            let unansweredQuestions = [];
+
+            // --- Questions Database with local image paths ---
+            const questions = [
+                { type: 'image', imageUrl: 'images/friz.jpeg', answers: ['Friz', 'Blowek', 'Rezi'], correct: 0 },
+                { type: 'image', imageUrl: 'images/wersow.png', answers: ['Natsu', 'Wersow', 'Lexy Chaplin'], correct: 1 },
+                { type: 'image', imageUrl: 'images/sanah.png', answers: ['Roksana Węgiel', 'Viki Gabor', 'sanah'], correct: 2 },
+                { type: 'image', imageUrl: 'images/podsiadlo.png', answers: ['Dawid Podsiadło', 'Ralph Kaminski', 'Mrozu'], correct: 0 },
+                { type: 'image', imageUrl: 'images/lexy.png', answers: ['Wersow', 'Lexy Chaplin', 'Marcysia'], correct: 1 },
+                { type: 'image', imageUrl: 'images/wegiel.png', answers: ['sanah', 'Viki Gabor', 'Roksana Węgiel'], correct: 2 },
+                { type: 'image', imageUrl: 'images/blowek.png', answers: ['Blowek', 'Friz', 'Marcin Dubiel'], correct: 0 },
+                { type: 'image', imageUrl: 'images/gabor.png', answers: ['Roksana Węgiel', 'Viki Gabor', 'Sara James'], correct: 1 }
+            ];
+
+            // --- Function to handle dynamic height for mobile browsers ---
+            function resizeGameContainer() {
+                gameContainer.style.height = `${window.innerHeight}px`;
+            }
+
+            // --- Game Logic ---
+
+            function startGame() {
+                correctlyAnswered = 0;
+                totalAnswered = 0;
+                updateScoreDisplay();
+                
+                BASE_GAME_SPEED = window.innerHeight / 400;
+
+                unansweredQuestions = shuffle([...questions]);
+
+                startScreen.style.display = 'none';
+                gameOverScreen.style.display = 'none';
+                spawnBrick();
+            }
+
+            function gameOver() {
+                cancelAnimationFrame(animationFrameId);
+                brick.style.display = 'none';
+                finalScoreDisplay.textContent = `${correctlyAnswered} / ${totalAnswered}`;
+                gameOverScreen.style.display = 'flex';
+            }
+
+            function spawnBrick() {
+                if (unansweredQuestions.length === 0) {
+                    gameOver();
+                    return;
+                }
+                
+                gameSpeed = BASE_GAME_SPEED;
+                laneClicked = false;
+                chosenLaneIndex = -1;
+
+                const questionIndex = Math.floor(Math.random() * unansweredQuestions.length);
+                currentQuestion = unansweredQuestions.splice(questionIndex, 1)[0];
+
+                brickImage.src = currentQuestion.imageUrl;
+                brickImage.style.display = 'block';
+                brickImage.onerror = () => { brickImage.src = `https://placehold.co/120x60/cccccc/ffffff?text=Image_Error`; };
+                brickText.style.display = 'none';
+
+                const shuffledAnswers = shuffle([...currentQuestion.answers]);
+                const correctText = currentQuestion.answers[currentQuestion.correct];
+                currentQuestion.correctLane = shuffledAnswers.indexOf(correctText);
+
+                lanes.forEach((lane, index) => {
+                    lane.textContent = shuffledAnswers[index];
+                });
+
+                const currentBrickWidth = window.innerWidth >= 768 ? 160 : 120;
+                const laneWidth = gameContainer.clientWidth / 3;
+                const laneIndexForBrick = 1; 
+                const brickX = (laneIndexForBrick * laneWidth) + (laneWidth / 2) - (currentBrickWidth / 2);
+                
+                brickY = -150;
+                brick.style.left = `${brickX}px`;
+                brick.style.top = `${brickY}px`;
+                brick.style.display = 'flex';
+
+                if (animationFrameId) cancelAnimationFrame(animationFrameId);
+                gameLoop();
+            }
+
+            function gameLoop() {
+                brickY += gameSpeed;
+                brick.style.top = `${brickY}px`;
+
+                const laneTopY = gameContainer.clientHeight - 120;
+                if (brickY + brick.offsetHeight >= laneTopY) {
+                    handleBrickImpact();
+                } else {
+                    animationFrameId = requestAnimationFrame(gameLoop);
+                }
+            }
+            
+            function handleLaneClick(clickedLaneIndex) {
+                if (laneClicked || brick.style.display === 'none') return;
+
+                laneClicked = true;
+                chosenLaneIndex = clickedLaneIndex;
+
+                const currentBrickWidth = window.innerWidth >= 768 ? 160 : 120;
+                const laneWidth = gameContainer.clientWidth / 3;
+                const targetX = (clickedLaneIndex * laneWidth) + (laneWidth / 2) - (currentBrickWidth / 2);
+                brick.style.left = `${targetX}px`;
+
+                gameSpeed *= 15;
+            }
+
+            function handleBrickImpact() {
+                if (brick.style.display === 'none') return;
+                
+                cancelAnimationFrame(animationFrameId);
+                totalAnswered++;
+
+                if (laneClicked) {
+                    if (chosenLaneIndex === currentQuestion.correctLane) {
+                        correctlyAnswered++;
+                        flashLane(chosenLaneIndex, 'correct');
+                    } else {
+                        flashLane(chosenLaneIndex, 'incorrect');
+                        flashLane(currentQuestion.correctLane, 'correct');
+                    }
+                } else {
+                    flashLane(currentQuestion.correctLane, 'incorrect');
+                }
+
+                updateScoreDisplay();
+                
+                brick.style.display = 'none';
+                setTimeout(spawnBrick, 500);
+            }
+
+            function updateScoreDisplay() {
+                scoreCorrectDisplay.textContent = correctlyAnswered;
+                scoreTotalDisplay.textContent = totalAnswered;
+            }
+
+            function flashLane(laneIndex, type) {
+                if (laneIndex < 0 || laneIndex >= lanes.length) return;
+                const lane = lanes[laneIndex];
+                lane.classList.add(type === 'correct' ? 'correct-flash' : 'incorrect-flash');
+                setTimeout(() => {
+                    lane.classList.remove('correct-flash', 'incorrect-flash');
+                }, 500);
+            }
+
+            function shuffle(array) {
+                for (let i = array.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [array[i], array[j]] = [array[j], array[i]];
+                }
+                return array;
+            }
+
+            // --- Event Listeners ---
+            startButton.addEventListener('click', startGame);
+            restartButton.addEventListener('click', startGame);
+
+            lanes.forEach((lane, index) => {
+                lane.addEventListener('click', () => handleLaneClick(index));
+            });
+
+            // --- Set initial size and listen for changes ---
+            resizeGameContainer();
+            window.addEventListener('resize', resizeGameContainer);
+        });
+    </script>
+</body>
+</html>
